@@ -1,0 +1,22 @@
+{
+  "name": "attendance-server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "seed:synthetic": "node scripts/seed-synthetic.js",
+    "check": "node --check server.js && node --check database/db.js && node --check routes/camera1.js && node --check routes/camera2.js && node --check routes/dashboard.js && node --check scripts/seed-synthetic.js"
+  },
+  "keywords": [],
+  "author": "",
+  "type": "commonjs",
+  "dependencies": {
+    "better-sqlite3": "^12.8.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "multer": "^2.2.0",
+    "socket.io": "^4.8.3"
+  }
+}

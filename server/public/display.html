@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Attendance — Check-in Display</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Prompt:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --pink:#E91E8C;--pink-dark:#c2185b;--pink-bg:#fdf0f8;--pink-pale:#fce4f3;
+  --green:#22c55e;--green-bg:#dcfce7;--green-dark:#15803d;
+  --amber:#f59e0b;--amber-bg:#fef3c7;--amber-dark:#92400e;
+  --red:#ef4444;--red-bg:#fee2e2;
+  --text-dark:#1a1a2e;--text-mid:#64748b;--text-soft:#cbd5e1;
+}
+html,body{height:100%;overflow:hidden}
+body{
+  font-family:'Sarabun',sans-serif;
+  background: #0f172a;
+  display:flex;gap:0;
+}
+
+/* ── LEFT: popup area ── */
+.popup-area{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:40px;position:relative;overflow:hidden;
+}
+.popup-area::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at center,#1e293b 0%,#0f172a 70%);
+}
+
+/* logo / idle */
+.idle-screen{
+  position:relative;z-index:1;text-align:center;
+  animation:breathe 3s ease-in-out infinite;
+}
+@keyframes breathe{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.03)}}
+.idle-icon{
+  width:120px;height:120px;border-radius:50%;
+  background:linear-gradient(135deg,var(--pink),var(--pink-dark));
+  display:flex;align-items:center;justify-content:center;margin:0 auto 20px;
+  box-shadow:0 0 60px rgba(233,30,140,.4);
+}
+.idle-title{font-family:'Prompt',sans-serif;font-size:1.5rem;font-weight:700;color:#fff;margin-bottom:8px}
+.idle-sub{font-size:1rem;color:#64748b}
+
+/* card popup */
+.checkin-card{
+  position:relative;z-index:1;
+  background:#1e293b;border-radius:28px;padding:40px 48px;
+  min-width:380px;max-width:480px;width:100%;
+  text-align:center;
+  box-shadow:0 0 0 1px rgba(255,255,255,.06), 0 40px 80px rgba(0,0,0,.5);
+  transform:scale(0) translateY(40px);opacity:0;
+  transition:transform .4s cubic-bezier(.34,1.56,.64,1), opacity .3s ease;
+  display:none;
+}
+.checkin-card.show{
+  display:block;
+  transform:scale(1) translateY(0);opacity:1;
+}
+
+/* avatar circle */
+.avatar{
+  width:110px;height:110px;border-radius:50%;margin:0 auto 20px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Prompt',sans-serif;font-size:2.4rem;font-weight:800;color:#fff;
+  position:relative;
+}
+.avatar::before{
+  content:'';position:absolute;inset:-4px;border-radius:50%;
+  background:conic-gradient(var(--ring-a),var(--ring-b),var(--ring-a));
+  animation:spin 2s linear infinite;z-index:-1;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.avatar.present{--ring-a:#22c55e;--ring-b:#86efac;background:var(--green-dark)}
+.avatar.late{--ring-a:#f59e0b;--ring-b:#fde68a;background:#b45309}
+.avatar.duplicate{--ring-a:#64748b;--ring-b:#94a3b8;background:#475569}
+
+.card-status-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 18px;border-radius:20px;font-size:.85rem;font-weight:700;
+  margin-bottom:16px;
+}
+.badge-present{background:var(--green-bg);color:var(--green-dark)}
+.badge-late{background:var(--amber-bg);color:var(--amber-dark)}
+.badge-duplicate{background:#1e293b;color:#64748b;border:1.5px solid #334155}
+
+.card-name{
+  font-family:'Prompt',sans-serif;font-size:2rem;font-weight:800;
+  color:#f8fafc;line-height:1.1;margin-bottom:6px;
+}
+.card-id{font-size:1rem;color:#64748b;margin-bottom:20px}
+.card-meta{
+  background:#0f172a;border-radius:14px;padding:14px 20px;
+  display:flex;gap:20px;justify-content:center;flex-wrap:wrap;
+}
+.card-meta-item{display:flex;flex-direction:column;align-items:center;gap:2px}
+.card-meta-label{font-size:.72rem;color:#475569;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.card-meta-value{font-size:.95rem;color:#e2e8f0;font-weight:600}
+
+.card-msg{
+  margin-top:18px;padding:12px 20px;border-radius:12px;
+  font-size:1rem;font-weight:600;
+}
+.card-msg.present{background:rgba(34,197,94,.12);color:#4ade80}
+.card-msg.late{background:rgba(245,158,11,.12);color:#fbbf24}
+.card-msg.duplicate{background:rgba(100,116,139,.12);color:#94a3b8}
+
+/* countdown bar */
+.countdown-bar{
+  margin-top:20px;height:4px;background:#1e293b;border-radius:2px;overflow:hidden;
+}
+.countdown-bar-fill{
+  height:100%;border-radius:2px;background:var(--pink);
+  animation:countdown 4s linear forwards;
+}
+@keyframes countdown{from{width:100%}to{width:0%}}
+
+/* ── RIGHT: feed ── */
+.feed-panel{
+  width:320px;flex-shrink:0;background:#0f172a;
+  border-left:1px solid #1e293b;display:flex;flex-direction:column;
+}
+.feed-header{
+  padding:20px 20px 14px;
+  border-bottom:1px solid #1e293b;
+}
+.feed-title{font-family:'Prompt',sans-serif;font-size:.95rem;font-weight:700;color:#f8fafc;display:flex;align-items:center;gap:8px}
+.live-dot{width:7px;height:7px;border-radius:50%;background:#4ade80;animation:blink 1.4s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.feed-sub{font-size:.78rem;color:#475569;margin-top:4px}
+.feed-session{
+  padding:12px 20px;background:#1e293b;border-bottom:1px solid #1e293b;
+  font-size:.82rem;
+}
+.feed-session-name{color:#f8fafc;font-weight:600;margin-bottom:2px}
+.feed-session-meta{color:#475569}
+
+.feed-list{flex:1;overflow-y:auto;padding:12px}
+.feed-list::-webkit-scrollbar{width:4px}
+.feed-list::-webkit-scrollbar-track{background:transparent}
+.feed-list::-webkit-scrollbar-thumb{background:#1e293b;border-radius:2px}
+.feed-empty{text-align:center;padding:40px 20px;color:#334155;font-size:.85rem}
+
+.feed-item{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;border-radius:12px;margin-bottom:8px;
+  background:#1e293b;
+  animation:slideIn .3s ease;
+}
+@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+.feed-avatar{
+  width:38px;height:38px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Prompt',sans-serif;font-size:.95rem;font-weight:700;color:#fff;
+  flex-shrink:0;
+}
+.feed-avatar.present{background:var(--green-dark)}
+.feed-avatar.late{background:#b45309}
+.feed-avatar.duplicate{background:#475569}
+.feed-info{flex:1;min-width:0}
+.feed-name{font-size:.88rem;font-weight:600;color:#f8fafc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.feed-detail{font-size:.72rem;color:#64748b;display:flex;gap:6px;margin-top:2px}
+.feed-time{margin-left:auto;font-size:.72rem;color:#334155;flex-shrink:0}
+.feed-badge{
+  display:inline-block;padding:2px 8px;border-radius:6px;
+  font-size:.68rem;font-weight:700;
+}
+.feed-badge.present{background:rgba(34,197,94,.15);color:#4ade80}
+.feed-badge.late{background:rgba(245,158,11,.15);color:#fbbf24}
+.feed-badge.duplicate{background:rgba(100,116,139,.15);color:#94a3b8}
+
+.feed-stats{
+  padding:14px 20px;border-top:1px solid #1e293b;
+  display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
+}
+.feed-stat{text-align:center}
+.feed-stat-num{font-family:'Prompt',sans-serif;font-size:1.3rem;font-weight:800;line-height:1}
+.feed-stat-num.green{color:#4ade80}
+.feed-stat-num.amber{color:#fbbf24}
+.feed-stat-num.gray{color:#64748b}
+.feed-stat-label{font-size:.68rem;color:#475569;margin-top:2px}
+</style>
+</head>
+<body>
+
+<!-- LEFT -->
+<div class="popup-area" id="popupArea">
+  <div class="idle-screen" id="idleScreen">
+    <div class="idle-icon">
+      <svg width="54" height="54" fill="none" stroke="#fff" stroke-width="1.8" viewBox="0 0 24 24">
+        <circle cx="12" cy="8" r="4"/>
+        <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+      </svg>
+    </div>
+    <div class="idle-title">รอการเช็คชื่อ</div>
+    <div class="idle-sub" id="sessionLabel">กำลังเชื่อมต่อ...</div>
+  </div>
+
+  <div class="checkin-card" id="checkinCard">
+    <div class="avatar" id="cardAvatar"></div>
+    <div class="card-status-badge" id="cardBadge"></div>
+    <div class="card-name" id="cardName"></div>
+    <div class="card-id" id="cardId"></div>
+    <div class="card-meta" id="cardMeta"></div>
+    <div class="card-msg" id="cardMsg"></div>
+    <div class="countdown-bar"><div class="countdown-bar-fill" id="countdownBar"></div></div>
+  </div>
+</div>
+
+<!-- RIGHT FEED -->
+<div class="feed-panel">
+  <div class="feed-header">
+    <div class="feed-title"><span class="live-dot"></span> เช็คชื่อ Real-time</div>
+    <div class="feed-sub" id="feedSub">เชื่อมต่อ...</div>
+  </div>
+  <div class="feed-session" id="feedSession" style="display:none">
+    <div class="feed-session-name" id="feedSessionName"></div>
+    <div class="feed-session-meta" id="feedSessionMeta"></div>
+  </div>
+  <div class="feed-list" id="feedList">
+    <div class="feed-empty">ยังไม่มีการเช็คชื่อ</div>
+  </div>
+  <div class="feed-stats">
+    <div class="feed-stat">
+      <div class="feed-stat-num green" id="fStatPresent">0</div>
+      <div class="feed-stat-label">มาทันเวลา</div>
+    </div>
+    <div class="feed-stat">
+      <div class="feed-stat-num amber" id="fStatLate">0</div>
+      <div class="feed-stat-label">สาย</div>
+    </div>
+    <div class="feed-stat">
+      <div class="feed-stat-num gray" id="fStatDup">0</div>
+      <div class="feed-stat-label">ซ้ำ</div>
+    </div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io()
+
+// ── state ──
+let cntPresent=0, cntLate=0, cntDup=0
+let hideTimer=null
+const feedItems = []
+
+// ── socket ──
+socket.on('connect', () => {
+  document.getElementById('feedSub').textContent = 'เชื่อมต่อแล้ว'
+  fetchSession()
+})
+socket.on('disconnect', () => {
+  document.getElementById('feedSub').textContent = 'ขาดการเชื่อมต่อ...'
+})
+
+socket.on('checkin_result', (data) => {
+  showCard(data)
+  addFeedItem(data)
+  updateStats(data)
+})
+
+// ── fetch active session ──
+async function fetchSession(){
+  try{
+    const r = await fetch('/api/camera1/session/active',{headers:{'ngrok-skip-browser-warning':'true'}})
+    if(!r.ok){ document.getElementById('sessionLabel').textContent='ยังไม่มีคลาสที่เปิดอยู่'; return }
+    const s = await r.json()
+    const startT = s.started_at?.split(' ')[1]?.slice(0,5) ?? '--:--'
+    document.getElementById('sessionLabel').textContent = `${s.subject_id} — ${s.subject_name} (${startT} น.)`
+    document.getElementById('feedSession').style.display='block'
+    document.getElementById('feedSessionName').textContent = `${s.subject_id} — ${s.subject_name}`
+    document.getElementById('feedSessionMeta').textContent = `เริ่ม ${startT} น.${s.room?' | '+s.room:''}`
+  } catch(e){
+    document.getElementById('sessionLabel').textContent='ไม่สามารถดึงข้อมูล session ได้'
+  }
+}
+
+// ── show popup card ──
+function showCard(data){
+  clearTimeout(hideTimer)
+  const card   = document.getElementById('checkinCard')
+  const idle   = document.getElementById('idleScreen')
+  const avatar = document.getElementById('cardAvatar')
+  const badge  = document.getElementById('cardBadge')
+  const name   = document.getElementById('cardName')
+  const idEl   = document.getElementById('cardId')
+  const meta   = document.getElementById('cardMeta')
+  const msg    = document.getElementById('cardMsg')
+  const bar    = document.getElementById('countdownBar')
+
+  // reset animation
+  card.classList.remove('show')
+  card.style.display='none'
+  void card.offsetWidth
+
+  const initials = data.name?.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() || '?'
+  const statusClass = data.duplicate ? 'duplicate' : data.status==='late' ? 'late' : 'present'
+
+  avatar.className = `avatar ${statusClass}`
+  avatar.textContent = initials
+
+  if(data.duplicate){
+    badge.className='card-status-badge badge-duplicate'
+    badge.innerHTML='⚠ เช็คชื่อซ้ำ'
+    msg.className='card-msg duplicate'
+    msg.textContent='นักศึกษาคนนี้เช็คชื่อไปแล้วในคลาสนี้'
+  } else if(data.status==='late'){
+    badge.className='card-status-badge badge-late'
+    badge.innerHTML=`⏰ มาสาย ${data.late_minutes} นาที`
+    msg.className='card-msg late'
+    msg.textContent=`เช็คชื่อสำเร็จ — สายจากเวลาเริ่ม ${data.late_minutes} นาที`
+  } else {
+    badge.className='card-status-badge badge-present'
+    badge.innerHTML='✓ มาทันเวลา'
+    msg.className='card-msg present'
+    msg.textContent='เช็คชื่อสำเร็จ — มาทันเวลา'
+  }
+
+  name.textContent = data.name
+  idEl.textContent = data.student_id
+
+  meta.innerHTML = `
+    <div class="card-meta-item">
+      <span class="card-meta-label">เวลา</span>
+      <span class="card-meta-value">${data.checked_at ?? '--'}</span>
+    </div>
+    ${data.subject ? `<div class="card-meta-item">
+      <span class="card-meta-label">วิชา</span>
+      <span class="card-meta-value">${data.subject}</span>
+    </div>` : ''}
+    ${data.room ? `<div class="card-meta-item">
+      <span class="card-meta-label">ห้อง</span>
+      <span class="card-meta-value">${data.room}</span>
+    </div>` : ''}
+  `
+
+  // reset countdown bar
+  bar.style.animation='none'; void bar.offsetWidth; bar.style.animation=''
+
+  idle.style.display='none'
+  card.style.display='block'
+  requestAnimationFrame(()=>card.classList.add('show'))
+
+  hideTimer = setTimeout(()=>{
+    card.classList.remove('show')
+    setTimeout(()=>{ card.style.display='none'; idle.style.display='block' }, 400)
+  }, 4000)
+}
+
+// ── feed ──
+function addFeedItem(data){
+  const list = document.getElementById('feedList')
+  // ลบ empty
+  const empty = list.querySelector('.feed-empty')
+  if(empty) empty.remove()
+
+  const statusClass = data.duplicate?'duplicate':data.status==='late'?'late':'present'
+  const initials    = data.name?.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()||'?'
+  const badgeText   = data.duplicate?'ซ้ำ':data.status==='late'?'สาย':'มา'
+  const now         = new Date()
+  const timeStr     = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`
+
+  const item = document.createElement('div')
+  item.className='feed-item'
+  item.innerHTML=`
+    <div class="feed-avatar ${statusClass}">${initials}</div>
+    <div class="feed-info">
+      <div class="feed-name">${data.name}</div>
+      <div class="feed-detail">
+        <span>${data.student_id}</span>
+        <span class="feed-badge ${statusClass}">${badgeText}</span>
+      </div>
+    </div>
+    <div class="feed-time">${timeStr}</div>
+  `
+  list.insertBefore(item, list.firstChild)
+
+  // จำกัด 50 รายการ
+  while(list.children.length > 50) list.removeChild(list.lastChild)
+}
+
+// ── stats ──
+function updateStats(data){
+  if(data.duplicate) cntDup++
+  else if(data.status==='late') cntLate++
+  else cntPresent++
+  document.getElementById('fStatPresent').textContent = cntPresent
+  document.getElementById('fStatLate').textContent    = cntLate
+  document.getElementById('fStatDup').textContent     = cntDup
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Attendance - Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --pink:#E91E8C;--pink-bg:#fdf0f8;--pink-pale:#fce4f3;
+  --green:#22c55e;--green-bg:#dcfce7;
+  --red:#ef4444;--red-bg:#fee2e2;
+  --amber:#f59e0b;--amber-bg:#fef3c7;
+  --blue:#3b82f6;--blue-bg:#dbeafe;
+  --purple:#8b5cf6;--purple-bg:#ede9fe;
+  --gray:#6b7280;--gray-bg:#f3f4f6;
+  --text-dark:#1a1a2e;--text-mid:#666;--text-soft:#bbb;
+}
+body{font-family:'Sarabun',sans-serif;background:var(--pink-bg);min-height:100vh;padding:28px 36px}
+h1{font-family:'Prompt',sans-serif;font-size:1.8rem;font-weight:700;color:var(--text-dark);margin-bottom:20px}
+
+/* ── SESSION BANNER ── */
+.session-banner{border-radius:16px;padding:18px 24px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;transition:all .3s}
+.session-banner.no-session{background:#fff;border:2px dashed #ddd}
+.session-banner.active-session{background:linear-gradient(135deg,#E91E8C 0%,#c2185b 100%);box-shadow:0 4px 20px rgba(233,30,140,.3)}
+.session-info{display:flex;flex-direction:column;gap:4px}
+.session-status-label{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.session-status-label.muted{color:var(--text-soft)}
+.session-status-label.live{color:rgba(255,255,255,.8)}
+.session-name{font-family:'Prompt',sans-serif;font-size:1.15rem;font-weight:700}
+.session-name.muted{color:var(--text-mid)}
+.session-name.white{color:#fff}
+.session-meta{display:flex;gap:14px;flex-wrap:wrap;margin-top:2px}
+.session-meta-item{font-size:.85rem;color:rgba(255,255,255,.85);display:flex;align-items:center;gap:4px}
+.session-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+
+/* ── BUTTONS ── */
+.btn{padding:10px 18px;border:none;border-radius:10px;font-family:'Sarabun',sans-serif;font-size:.92rem;font-weight:600;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{transform:translateY(-2px)}
+.btn-pink{background:var(--pink);color:#fff;box-shadow:0 2px 8px rgba(233,30,140,.3)}
+.btn-pink:hover{box-shadow:0 4px 14px rgba(233,30,140,.4)}
+.btn-outline-white{background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.4)}
+.btn-outline-white:hover{background:rgba(255,255,255,.25)}
+.btn-gray{background:var(--gray-bg);color:var(--text-mid)}
+.btn-gray:hover{background:#e5e7eb}
+.btn-purple{background:var(--purple);color:#fff;box-shadow:0 2px 8px rgba(139,92,246,.3)}
+.btn-purple:hover{box-shadow:0 4px 14px rgba(139,92,246,.4)}
+.btn-red{background:var(--red);color:#fff}
+.btn-red:hover{background:#dc2626}
+.live-dot{width:7px;height:7px;border-radius:50%;background:#4ade80;display:inline-block;animation:blink 1.4s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── LATE BAR ── */
+.late-bar{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.15);border-radius:10px;padding:8px 14px;font-size:.88rem;font-weight:600;color:#fff}
+.late-bar input[type=number]{width:48px;padding:4px 6px;border:1.5px solid rgba(255,255,255,.5);border-radius:6px;font-family:'Sarabun',sans-serif;font-size:.9rem;text-align:center;outline:none;background:rgba(255,255,255,.2);color:#fff}
+.late-bar input[type=number]::placeholder{color:rgba(255,255,255,.6)}
+.late-bar button{padding:5px 12px;background:rgba(255,255,255,.9);color:var(--pink);border:none;border-radius:6px;font-family:'Sarabun',sans-serif;font-size:.85rem;font-weight:700;cursor:pointer}
+
+/* ── SESSIONS LIST ── */
+.sessions-section{margin-bottom:22px}
+.sessions-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sessions-title{font-size:.95rem;font-weight:600;color:var(--text-mid)}
+.sessions-grid{display:flex;flex-direction:column;gap:10px}
+.session-card{background:#fff;border-radius:14px;padding:16px 20px;box-shadow:0 2px 8px rgba(0,0,0,.05);cursor:pointer;transition:all .2s;border:2px solid transparent;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.session-card:hover{transform:translateY(-2px);box-shadow:0 4px 14px rgba(233,30,140,.12)}
+.session-card.selected{border-color:var(--pink);background:var(--pink-bg)}
+.session-card.closed{opacity:.7}
+.sc-left{display:flex;flex-direction:column;gap:3px}
+.sc-subject{font-family:'Prompt',sans-serif;font-size:.95rem;font-weight:600;color:var(--text-dark)}
+.sc-meta{font-size:.82rem;color:var(--text-mid);display:flex;gap:12px;flex-wrap:wrap}
+.sc-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.sc-stats{display:flex;gap:10px}
+.sc-stat{display:flex;flex-direction:column;align-items:center;gap:1px;min-width:40px}
+.sc-stat-num{font-family:'Prompt',sans-serif;font-size:1.1rem;font-weight:700;line-height:1}
+.sc-stat-label{font-size:.7rem;color:var(--text-soft)}
+.sc-stat-num.green{color:var(--green)}
+.sc-stat-num.amber{color:var(--amber)}
+.sc-stat-num.red{color:var(--red)}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:.75rem;font-weight:700}
+.badge.active-badge{background:var(--green-bg);color:#15803d}
+.badge.closed-badge{background:var(--gray-bg);color:var(--gray)}
+.badge.autoclosed-badge{background:var(--amber-bg);color:#92400e}
+.no-sessions{text-align:center;padding:28px;color:var(--text-soft);font-size:.9rem;background:#fff;border-radius:14px;border:2px dashed #eee}
+
+/* ── SEARCH ── */
+.search-label{font-size:.85rem;font-weight:600;color:var(--text-mid);margin-bottom:8px;display:block}
+.search-wrap{position:relative;margin-bottom:8px}
+.search-icon{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--pink);pointer-events:none}
+.search-input{width:100%;padding:13px 18px 13px 46px;border:1.8px solid var(--pink);border-radius:14px;font-family:'Sarabun',sans-serif;font-size:.97rem;color:var(--text-dark);background:#fff;outline:none;transition:box-shadow .2s}
+.search-input:focus{box-shadow:0 0 0 3px rgba(233,30,140,.12)}
+.search-input::placeholder{color:var(--text-soft)}
+.error-msg{display:none;margin-bottom:14px;padding:11px 16px;background:var(--red-bg);border:1.5px solid var(--red);border-radius:10px;color:var(--red);font-size:.87rem;font-weight:500}
+.error-msg.show{display:block}
+
+/* ── STATS ── */
+.stats-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin:20px 0}
+.stat-card{background:#fff;border-radius:20px;padding:20px 14px 16px;display:flex;flex-direction:column;align-items:center;gap:8px;box-shadow:0 2px 10px rgba(0,0,0,.05);transition:transform .2s,box-shadow .2s;animation:fadeUp .4s ease both}
+.stat-card.filterable{cursor:pointer}
+.stat-card.filterable:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(233,30,140,.1)}
+.stat-card.filterable.active-filter{outline:2.5px solid var(--filter-color,var(--pink))}
+.stat-icon{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center}
+.stat-icon.purple{background:var(--pink-pale)}
+.stat-icon.green{background:var(--green-bg)}
+.stat-icon.amber{background:var(--amber-bg)}
+.stat-icon.red{background:var(--red-bg)}
+.stat-icon.pink{background:var(--pink-pale)}
+.stat-label{font-size:.82rem;color:var(--text-mid);font-weight:500;text-align:center}
+.stat-value{font-family:'Prompt',sans-serif;font-size:1.7rem;font-weight:700;line-height:1}
+.stat-value.pink{color:var(--pink)}
+.stat-value.green{color:var(--green)}
+.stat-value.amber{color:var(--amber)}
+.stat-value.red{color:var(--red)}
+
+/* ── FILTER ── */
+.filter-bar{display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.filter-lbl{font-size:.85rem;font-weight:600;color:var(--text-mid)}
+.filter-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:50px;border:2px solid transparent;font-family:'Sarabun',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;transition:all .2s;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.filter-btn.all{color:var(--text-mid);border-color:#ddd}
+.filter-btn.present{color:var(--green);border-color:var(--green-bg)}
+.filter-btn.late{color:var(--amber);border-color:var(--amber-bg)}
+.filter-btn.absent{color:var(--red);border-color:var(--red-bg)}
+.filter-btn.all.active{background:var(--text-dark);color:#fff;border-color:var(--text-dark)}
+.filter-btn.present.active{background:var(--green);color:#fff}
+.filter-btn.late.active{background:var(--amber);color:#fff}
+.filter-btn.absent.active{background:var(--red);color:#fff}
+.fc{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;font-size:.72rem;font-weight:700}
+.filter-btn.all .fc{background:#eee;color:var(--text-mid)}
+.filter-btn.present .fc{background:var(--green-bg);color:var(--green)}
+.filter-btn.late .fc{background:var(--amber-bg);color:var(--amber)}
+.filter-btn.absent .fc{background:var(--red-bg);color:var(--red)}
+.filter-btn.active .fc{background:rgba(255,255,255,.25);color:#fff}
+.result-info{font-size:.83rem;color:var(--text-soft);margin-left:auto;font-weight:500}
+
+/* ── TABLE ── */
+.table-card{background:#fff;border-radius:20px;padding:24px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+.table-card-title{font-family:'Prompt',sans-serif;font-size:1.05rem;font-weight:600;color:var(--text-dark);margin-bottom:16px}
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+thead tr{background:var(--pink-bg)}
+thead th{text-align:left;padding:11px 18px;font-size:.8rem;font-weight:700;color:var(--text-mid)}
+thead th:first-child{border-radius:10px 0 0 10px}
+thead th:last-child{border-radius:0 10px 10px 0}
+tbody tr{border-bottom:1px solid #f5f5f5;transition:background .15s}
+tbody tr:hover{background:var(--pink-bg)}
+tbody tr:last-child{border-bottom:none}
+tbody td{padding:13px 18px;color:var(--text-dark);font-weight:500}
+.status-badge{display:inline-flex;align-items:center;gap:5px;font-size:.87rem;font-weight:600}
+.status-badge.present{color:var(--green)}
+.status-badge.late{color:var(--amber)}
+.status-badge.absent{color:var(--red)}
+
+/* ── MODALS ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal-box{background:#fff;border-radius:20px;padding:32px;width:90%;max-width:500px;animation:slideUp .3s ease;max-height:90vh;overflow-y:auto}
+.modal-title{font-family:'Prompt',sans-serif;font-size:1.15rem;font-weight:700;color:var(--text-dark);margin-bottom:24px;display:flex;align-items:center;gap:10px}
+.form-group{margin-bottom:16px}
+.form-label{display:block;font-size:.85rem;font-weight:600;color:var(--text-mid);margin-bottom:6px}
+.form-label span{color:var(--red)}
+.form-input{width:100%;padding:11px 14px;border:1.8px solid #e5e7eb;border-radius:10px;font-family:'Sarabun',sans-serif;font-size:.95rem;color:var(--text-dark);outline:none;transition:border-color .2s,box-shadow .2s}
+.form-input:focus{border-color:var(--pink);box-shadow:0 0 0 3px rgba(233,30,140,.1)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.form-hint{font-size:.78rem;color:var(--text-soft);margin-top:4px}
+.auto-end-hint{background:var(--amber-bg);border-radius:8px;padding:10px 14px;font-size:.82rem;color:#92400e;margin-top:8px;display:none}
+.auto-end-hint.show{display:block}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:24px}
+
+/* ── CALENDAR ── */
+.cal-nav{display:flex;gap:10px;margin-bottom:14px}
+.cal-sel{flex:1;padding:8px 12px;border:1.5px solid var(--pink);border-radius:8px;font-family:'Sarabun',sans-serif;font-size:.9rem;outline:none}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:16px}
+.cal-day-name{text-align:center;font-weight:700;font-size:.75rem;padding:8px 4px;color:var(--pink)}
+.cal-day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:8px;border:1.5px solid #f0f0f0;font-size:.85rem;font-weight:500;color:var(--text-dark);background:#fff;cursor:pointer;transition:all .18s}
+.cal-day:hover:not(.cdis){border-color:var(--pink);background:var(--pink-pale)}
+.cal-day.ctoday{border-color:var(--pink);background:var(--pink-bg)}
+.cal-day.csel{background:var(--pink);color:#fff;border-color:var(--pink)}
+.cal-day.cdis{color:var(--text-soft);cursor:not-allowed}
+.cal-day.chas{border-color:#fbc8e8}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:28px;right:28px;z-index:9999;padding:12px 20px;border-radius:12px;font-size:.9rem;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,.25);transform:translateY(80px);opacity:0;transition:all .3s;display:flex;align-items:center;gap:8px;max-width:340px}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.tok{background:#15803d;color:#fff}
+.toast.terr{background:var(--red);color:#fff}
+.toast.tinfo{background:var(--text-dark);color:#fff}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+@media(max-width:900px){.stats-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:600px){body{padding:16px}.stats-grid{grid-template-columns:repeat(2,1fr)}.form-row,.form-row-3{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<h1>ข้อมูลการเข้าเรียน</h1>
+
+<!-- SESSION BANNER -->
+<div class="session-banner no-session" id="sessionBanner">
+  <div class="session-info">
+    <span class="session-status-label muted" id="bannerStatusLabel">ยังไม่ได้เปิดคลาส</span>
+    <span class="session-name muted" id="bannerTitle">กรุณาเปิดคลาสก่อนเริ่มเช็คชื่อ</span>
+    <div class="session-meta" id="bannerMeta" style="display:none"></div>
+  </div>
+  <div class="session-actions" id="bannerActions"></div>
+</div>
+
+<!-- SESSIONS LIST -->
+<div class="sessions-section">
+  <div class="sessions-header">
+    <span class="sessions-title" id="sessionsTitle">คลาสวันนี้</span>
+    <button class="btn btn-pink" onclick="OpenModal.show()" id="addSessionBtn">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>เปิดคลาสใหม่
+    </button>
+  </div>
+  <div class="sessions-grid" id="sessionsGrid">
+    <div class="no-sessions">กำลังโหลด...</div>
+  </div>
+</div>
+
+<!-- SEARCH -->
+<label class="search-label">ค้นหารหัสนักศึกษา</label>
+<div class="search-wrap">
+  <span class="search-icon">
+    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22" stroke-linecap="round"/>
+    </svg>
+  </span>
+  <input type="text" class="search-input" id="searchInput" placeholder="กรอกรหัสนักศึกษา (เช่น STU001)" maxlength="16"/>
+</div>
+<div class="error-msg" id="errorMsg"></div>
+
+<!-- STATS -->
+<div class="stats-grid">
+  <div class="stat-card" style="animation-delay:.05s">
+    <div class="stat-icon purple">
+      <svg width="26" height="26" fill="none" stroke="#E91E8C" stroke-width="1.8" viewBox="0 0 24 24">
+        <circle cx="9" cy="7" r="3"/><circle cx="16" cy="8" r="2.5"/><path d="M2 21c0-4 3.1-7 7-7h4c3.9 0 7 3 7 7"/>
+      </svg>
+    </div>
+    <span class="stat-label">นักศึกษาทั้งหมด</span>
+    <span class="stat-value pink" id="statTotal">—</span>
+  </div>
+  <div class="stat-card filterable" id="cardPresent" onclick="Filter.set('present')" style="--filter-color:#22c55e;animation-delay:.10s">
+    <div class="stat-icon green">
+      <svg width="26" height="26" fill="none" stroke="#22c55e" stroke-width="1.8" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-5.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <span class="stat-label">มาทันเวลา</span>
+    <span class="stat-value green" id="statPresent">—</span>
+  </div>
+  <div class="stat-card filterable" id="cardLate" onclick="Filter.set('late')" style="--filter-color:#f59e0b;animation-delay:.15s">
+    <div class="stat-icon amber">
+      <svg width="26" height="26" fill="none" stroke="#f59e0b" stroke-width="1.8" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <span class="stat-label">สาย</span>
+    <span class="stat-value amber" id="statLate">—</span>
+  </div>
+  <div class="stat-card filterable" id="cardAbsent" onclick="Filter.set('absent')" style="--filter-color:#ef4444;animation-delay:.20s">
+    <div class="stat-icon red">
+      <svg width="26" height="26" fill="none" stroke="#ef4444" stroke-width="1.8" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9"/><line x1="9" y1="9" x2="15" y2="15" stroke-linecap="round"/><line x1="15" y1="9" x2="9" y2="15" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <span class="stat-label">ขาดเรียน</span>
+    <span class="stat-value red" id="statAbsent">—</span>
+  </div>
+  <div class="stat-card" style="animation-delay:.25s">
+    <div class="stat-icon pink">
+      <svg width="26" height="26" fill="none" stroke="#E91E8C" stroke-width="1.8" viewBox="0 0 24 24">
+        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+      </svg>
+    </div>
+    <span class="stat-label">เปอร์เซ็นต์เข้าเรียน</span>
+    <span class="stat-value pink" id="statPercent">—</span>
+  </div>
+</div>
+
+<!-- FILTER BAR -->
+<div class="filter-bar">
+  <span class="filter-lbl">กรองสถานะ:</span>
+  <button class="filter-btn all active" id="btn-all"     onclick="Filter.set('all')">ทั้งหมด <span class="fc" id="cnt-all">0</span></button>
+  <button class="filter-btn present"    id="btn-present" onclick="Filter.set('present')">มาทันเวลา <span class="fc" id="cnt-present">0</span></button>
+  <button class="filter-btn late"       id="btn-late"    onclick="Filter.set('late')">สาย <span class="fc" id="cnt-late">0</span></button>
+  <button class="filter-btn absent"     id="btn-absent"  onclick="Filter.set('absent')">ขาดเรียน <span class="fc" id="cnt-absent">0</span></button>
+  <span class="result-info" id="resultInfo"></span>
+</div>
+
+<!-- TABLE -->
+<div class="table-card">
+  <div class="table-card-title">รายชื่อนักศึกษา</div>
+  <table>
+    <thead>
+      <tr><th>รหัสนักศึกษา</th><th>ชื่อ</th><th>คลาส</th><th>เวลาเช็กชื่อ</th><th>สถานะ</th></tr>
+    </thead>
+    <tbody id="tableBody">
+      <tr><td colspan="5" style="text-align:center;padding:30px;color:#bbb">กำลังโหลดข้อมูล...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ════ MODAL: เปิดคลาสใหม่ ════ -->
+<div class="modal-overlay" id="openModal">
+  <div class="modal-box">
+    <div class="modal-title">
+      <svg width="20" height="20" fill="none" stroke="var(--pink)" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3" stroke-linecap="round"/>
+      </svg>เปิดคลาสใหม่
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">รหัสวิชา <span>*</span></label>
+        <input class="form-input" id="f_sid" placeholder="เช่น CS101"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">ห้อง</label>
+        <input class="form-input" id="f_room" placeholder="เช่น ห้อง 301"/>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">ชื่อวิชา <span>*</span></label>
+      <input class="form-input" id="f_sname" placeholder="เช่น โครงสร้างข้อมูล"/>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">เวลาเริ่มคลาส <span>*</span></label>
+      <input class="form-input" id="f_start" type="time"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">เวลาปิดรับเช็คชื่อ <span>*</span></label>
+      <input class="form-input" id="f_end" type="time" oninput="OpenModal.updateAutoHint()"/>
+      <div class="auto-end-hint" id="autoEndHint">⏰ ระบบจะปิดรับเช็คชื่ออัตโนมัติเมื่อถึงเวลานี้</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">นาทีที่ถือว่า "สาย" <span>*</span></label>
+      <input class="form-input" id="f_late" type="number" value="15" min="1" max="120"/>
+      <div class="form-hint">นับจากเวลาเริ่มคลาส เช่น เริ่ม 17:00 + 15 นาที = สายเมื่อ 17:16 เป็นต้นไป</div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-gray" onclick="OpenModal.hide()">ยกเลิก</button>
+      <button class="btn btn-pink" onclick="OpenModal.submit()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path d="M5 12l5 5L19 7" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>เปิดคลาส
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL: ดูข้อมูลย้อนหลัง ════ -->
+<div class="modal-overlay" id="histModal">
+  <div class="modal-box" style="max-width:540px">
+    <div class="modal-title">
+      <svg width="20" height="20" fill="none" stroke="var(--purple)" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+      </svg>ดูข้อมูลย้อนหลัง
+    </div>
+    <div class="cal-nav">
+      <select class="cal-sel" id="calMonth" onchange="HistModal.renderCal()">
+        <option value="0">มกราคม</option><option value="1">กุมภาพันธ์</option><option value="2">มีนาคม</option>
+        <option value="3">เมษายน</option><option value="4">พฤษภาคม</option><option value="5">มิถุนายน</option>
+        <option value="6">กรกฎาคม</option><option value="7">สิงหาคม</option><option value="8">กันยายน</option>
+        <option value="9">ตุลาคม</option><option value="10">พฤศจิกายน</option><option value="11">ธันวาคม</option>
+      </select>
+      <select class="cal-sel" id="calYear" style="max-width:110px" onchange="HistModal.renderCal()"></select>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+    <div style="display:flex;justify-content:flex-end">
+      <button class="btn btn-gray" onclick="HistModal.hide()">ปิด</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════
+// STATE
+// ════════════════════════════════════
+const S = {
+  todaySessions:  [],
+  selectedSid:    null,
+  allStudents:    [],
+  filter:         'all',
+  search:         '',
+  availDates:     new Set(),
+  calMonth:       new Date()
+}
+
+function dstr(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
+function hhmm(d){ return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}` }
+function addMin(t, m){
+  const [h,min]=t.split(':').map(Number)
+  const tot=h*60+min+Number(m)
+  return `${String(Math.floor(tot/60)%24).padStart(2,'0')}:${String(tot%60).padStart(2,'0')}`
+}
+function thaiDate(d){
+  const days=['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์']
+  const mons=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
+  return `${days[d.getDay()]} ${d.getDate()} ${mons[d.getMonth()]} ${d.getFullYear()+543}`
+}
+
+// ════════════════════════════════════
+// API
+// ════════════════════════════════════
+const API = {
+  g: url => fetch(url).then(r=>{ if(!r.ok) throw new Error(r.status); return r.json() }),
+  p: (url,b) => fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).then(r=>{ if(!r.ok) throw new Error(r.status); return r.json() }),
+  todaySessions:       ()    => API.g('/api/dashboard/sessions/today'),
+  sessionAttendance:   (id)  => API.g(`/api/dashboard/attendance/session/${id}`),
+  createSession:       (b)   => API.p('/api/dashboard/session/create', b),
+  closeSession:        (id)  => API.p('/api/dashboard/session/close', {session_id:id}),
+  saveLate:            (id,m)=> API.p('/api/dashboard/session/late-threshold', {session_id:id,minutes:m}),
+  availDates:          ()    => API.g('/api/dashboard/attendance/dates'),
+  sessionsByDate:      (d)   => API.g(`/api/dashboard/sessions/date?date=${d}`)
+}
+
+// ════════════════════════════════════
+// TOAST
+// ════════════════════════════════════
+let _tt
+function toast(msg, type='tinfo'){
+  const el=document.getElementById('toast')
+  el.textContent=msg; el.className=`toast ${type} show`
+  clearTimeout(_tt); _tt=setTimeout(()=>el.classList.remove('show'),2800)
+}
+
+// ════════════════════════════════════
+// BANNER
+// ════════════════════════════════════
+function renderBanner(){
+  const active = S.todaySessions.find(s => s.is_active)
+  const banner = document.getElementById('sessionBanner')
+  const lbl    = document.getElementById('bannerStatusLabel')
+  const title  = document.getElementById('bannerTitle')
+  const meta   = document.getElementById('bannerMeta')
+  const acts   = document.getElementById('bannerActions')
+
+  if(!active){
+    banner.className='session-banner no-session'
+    lbl.className='session-status-label muted'; lbl.textContent='ยังไม่มีคลาสที่เปิดอยู่'
+    title.className='session-name muted'; title.textContent='เปิดคลาสใหม่เพื่อเริ่มรับเช็คชื่อ'
+    meta.style.display='none'
+    acts.innerHTML=`<button class="btn btn-pink" onclick="OpenModal.show()">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>เปิดคลาสใหม่
+    </button>
+    <button class="btn btn-purple" onclick="HistModal.show()">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>ย้อนหลัง
+    </button>`
+    return
+  }
+
+  const startT = active.started_at.split(' ')[1]?.slice(0,5) ?? '--:--'
+  const lateT  = addMin(startT, active.late_threshold ?? 15)
+  banner.className='session-banner active-session'
+  lbl.className='session-status-label live'
+  lbl.innerHTML=`<span class="live-dot"></span> กำลังเปิดรับเช็คชื่อ`
+  title.className='session-name white'
+  title.textContent=`${active.subject_id} — ${active.subject_name}`
+  meta.style.display='flex'
+  meta.innerHTML=`
+    <span class="session-meta-item">⏰ เริ่ม ${startT} น.</span>
+    <span class="session-meta-item">⚠️ สายหลัง ${lateT} น.</span>
+    ${active.end_time ? `<span class="session-meta-item">🔒 ปิด ${active.end_time} น.</span>` : ''}
+    ${active.room ? `<span class="session-meta-item">🏫 ${active.room}</span>` : ''}
+  `
+  acts.innerHTML=`
+    <div class="late-bar">
+      <span>สายหลัง</span>
+      <input type="number" id="lateInput" value="${active.late_threshold??15}" min="1" max="120"/>
+      <span>นาที</span>
+      <button onclick="saveLate()">บันทึก</button>
+    </div>
+    <button class="btn btn-outline-white" onclick="doClose(${active.id})">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="18" height="18" rx="3"/>
+        <path d="M9 9l6 6M15 9l-6 6" stroke-linecap="round"/>
+      </svg>ปิดคลาส
+    </button>
+    <button class="btn btn-purple" onclick="HistModal.show()">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>ย้อนหลัง
+    </button>`
+}
+
+async function saveLate(){
+  const m = parseInt(document.getElementById('lateInput')?.value)
+  if(!m||m<1) return toast('ใส่จำนวนนาทีให้ถูกต้อง','terr')
+  const active = S.todaySessions.find(s=>s.is_active)
+  if(!active) return
+  await API.saveLate(active.id, m)
+  active.late_threshold = m
+  renderBanner()
+  toast(`บันทึกแล้ว: สายหลัง ${m} นาที`,'tok')
+}
+
+async function doClose(id){
+  if(!confirm('ต้องการปิดคลาสนี้ใช่ไหม?')) return
+  await API.closeSession(id)
+  toast('ปิดคลาสแล้ว')
+  await loadToday()
+}
+
+// ════════════════════════════════════
+// SESSIONS GRID
+// ════════════════════════════════════
+function renderSessionsGrid(){
+  const grid = document.getElementById('sessionsGrid')
+  if(!S.todaySessions.length){
+    grid.innerHTML='<div class="no-sessions">ยังไม่มีคลาสวันนี้ — กด "เปิดคลาสใหม่" เพื่อเริ่ม</div>'
+    return
+  }
+  grid.innerHTML = S.todaySessions.map(s=>{
+    const startT  = s.started_at.split(' ')[1]?.slice(0,5) ?? '--:--'
+    const endT    = s.end_time ?? null
+    const isSel   = S.selectedSid === s.id
+    const isAct   = !!s.is_active
+    const lateT   = addMin(startT, s.late_threshold??15)
+
+    let badgeHtml = isAct
+      ? `<span class="badge active-badge"><span class="live-dot" style="width:6px;height:6px"></span> กำลังเปิด</span>`
+      : endT
+      ? `<span class="badge autoclosed-badge">⏰ ปิดอัตโนมัติ</span>`
+      : `<span class="badge closed-badge">ปิดแล้ว</span>`
+
+    return `<div class="session-card ${isSel?'selected':''} ${!isAct?'closed':''}" onclick="selectSession(${s.id})">
+      <div class="sc-left">
+        <div class="sc-subject">${s.subject_id} — ${s.subject_name}</div>
+        <div class="sc-meta">
+          <span>⏰ ${startT}${endT?' – '+endT:''} น.</span>
+          <span>⚠️ สายหลัง ${lateT} น.</span>
+          ${s.room?`<span>🏫 ${s.room}</span>`:''}
+        </div>
+      </div>
+      <div class="sc-right">
+        <div class="sc-stats">
+          <div class="sc-stat"><span class="sc-stat-num green">${s.present??'—'}</span><span class="sc-stat-label">มา</span></div>
+          <div class="sc-stat"><span class="sc-stat-num amber">${s.late??'—'}</span><span class="sc-stat-label">สาย</span></div>
+          <div class="sc-stat"><span class="sc-stat-num red">${s.absent??'—'}</span><span class="sc-stat-label">ขาด</span></div>
+        </div>
+        ${badgeHtml}
+      </div>
+    </div>`
+  }).join('')
+}
+
+async function selectSession(id){
+  S.selectedSid = id
+  renderSessionsGrid()
+  await loadSessionData(id)
+}
+
+// ════════════════════════════════════
+// STATS + TABLE
+// ════════════════════════════════════
+function renderStats(d){
+  document.getElementById('statTotal').textContent   = d.total   ?? '—'
+  document.getElementById('statPresent').textContent = d.present ?? '—'
+  document.getElementById('statLate').textContent    = d.late    ?? '—'
+  document.getElementById('statAbsent').textContent  = d.absent  ?? '—'
+  document.getElementById('statPercent').textContent = d.percent ?? '—'
+}
+
+function renderTable(students){
+  const tb = document.getElementById('tableBody')
+  if(!students.length){
+    const msg = S.filter==='present'?'ไม่มีนักศึกษาที่มาทันเวลา'
+              : S.filter==='late'?'ไม่มีนักศึกษาที่มาสาย'
+              : S.filter==='absent'?'ไม่มีนักศึกษาที่ขาดเรียน':'ไม่พบข้อมูล'
+    tb.innerHTML=`<tr><td colspan="5" style="text-align:center;padding:40px;color:#bbb">🔍 ${msg}</td></tr>`
+    return
+  }
+  const sess = S.todaySessions.find(s=>s.id===S.selectedSid)
+  const startT = sess?.started_at?.split(' ')[1]?.slice(0,5) ?? ''
+  const endT   = sess?.end_time ?? ''
+  const label  = startT ? `${startT}${endT?' – '+endT:''} น.` : '—'
+
+  tb.innerHTML = students.map((s,i)=>{
+    const badge = s.status==='present'
+      ? `<span class="status-badge present">✓ มา</span>`
+      : s.status==='late'
+      ? `<span class="status-badge late">⏰ สาย</span>`
+      : `<span class="status-badge absent">✕ ขาด</span>`
+    return `<tr style="animation-delay:${i*.03}s">
+      <td>${s.studentId}</td><td>${s.name}</td>
+      <td>${label}</td><td>${s.checkTime??'-'}</td><td>${badge}</td>
+    </tr>`
+  }).join('')
+}
+
+// ════════════════════════════════════
+// FILTER
+// ════════════════════════════════════
+const Filter = {
+  set(f){
+    S.filter = (S.filter===f&&f!=='all') ? 'all' : f
+    ;['all','present','late','absent'].forEach(x=>
+      document.getElementById(`btn-${x}`).classList.toggle('active', S.filter===x))
+    document.getElementById('cardPresent').classList.toggle('active-filter', S.filter==='present')
+    document.getElementById('cardLate').classList.toggle('active-filter', S.filter==='late')
+    document.getElementById('cardAbsent').classList.toggle('active-filter', S.filter==='absent')
+    Filter.apply()
+  },
+  apply(){
+    let res=[...S.allStudents]
+    if(S.filter==='present') res=res.filter(s=>s.status==='present')
+    else if(S.filter==='late') res=res.filter(s=>s.status==='late')
+    else if(S.filter==='absent') res=res.filter(s=>s.status==='absent')
+    if(S.search.length===8){ const kw=S.search.toLowerCase(); res=res.filter(s=>s.studentId.includes(kw)||s.name.toLowerCase().includes(kw)) }
+    document.getElementById('cnt-all').textContent     = S.allStudents.length
+    document.getElementById('cnt-present').textContent = S.allStudents.filter(s=>s.status==='present').length
+    document.getElementById('cnt-late').textContent    = S.allStudents.filter(s=>s.status==='late').length
+    document.getElementById('cnt-absent').textContent  = S.allStudents.filter(s=>s.status==='absent').length
+    document.getElementById('resultInfo').textContent  = (S.filter!=='all'||S.search.length===8) ? `แสดง ${res.length} จาก ${S.allStudents.length} คน` : ''
+    renderTable(res)
+  }
+}
+
+// ════════════════════════════════════
+// OPEN SESSION MODAL
+// ════════════════════════════════════
+const OpenModal = {
+  show(){
+    const now = new Date()
+    document.getElementById('f_start').value = hhmm(now)
+    document.getElementById('f_end').value   = ''
+    document.getElementById('autoEndHint').classList.remove('show')
+    document.getElementById('openModal').classList.add('show')
+  },
+  hide(){ document.getElementById('openModal').classList.remove('show') },
+  updateAutoHint(){
+    const v = document.getElementById('f_end').value
+    document.getElementById('autoEndHint').classList.toggle('show', !!v)
+  },
+  async submit(){
+    const sid   = document.getElementById('f_sid').value.trim()
+    const sname = document.getElementById('f_sname').value.trim()
+    const room  = document.getElementById('f_room').value.trim()
+    const start = document.getElementById('f_start').value
+    const end   = document.getElementById('f_end').value
+    const late  = parseInt(document.getElementById('f_late').value)||15
+
+    if(!sid)   return toast('กรุณาใส่รหัสวิชา','terr')
+    if(!sname) return toast('กรุณาใส่ชื่อวิชา','terr')
+    if(!start) return toast('กรุณาเลือกเวลาเริ่มคลาส','terr')
+    if(!end)   return toast('กรุณาเลือกเวลาปิดรับเช็คชื่อ','terr')
+    if(end<=start) return toast('เวลาปิดต้องมากกว่าเวลาเริ่ม','terr')
+
+    try {
+      await API.createSession({ subject_id:sid, subject_name:sname, room, class_start_time:start, class_end_time:end, late_threshold:late })
+      OpenModal.hide()
+      toast(`เปิดคลาส ${sname} เรียบร้อย`,'tok')
+      await loadToday()
+      const newest = S.todaySessions[S.todaySessions.length-1]
+      if(newest) selectSession(newest.id)
+    } catch(e){ toast('เปิดคลาสไม่สำเร็จ: '+e.message,'terr') }
+  }
+}
+
+// ════════════════════════════════════
+// HISTORY MODAL
+// ════════════════════════════════════
+const HistModal = {
+  async show(){
+    S.calMonth = new Date()
+    try{ const d=await API.availDates(); S.availDates=new Set(d.dates) }
+    catch{ S.availDates=new Set() }
+    const yr=document.getElementById('calYear')
+    const cy=new Date().getFullYear()
+    yr.innerHTML=''
+    for(let y=cy-1;y<=cy+1;y++){const o=document.createElement('option');o.value=y;o.textContent=y+543;if(y===cy)o.selected=true;yr.appendChild(o)}
+    document.getElementById('calMonth').value=S.calMonth.getMonth()
+    HistModal.renderCal()
+    document.getElementById('histModal').classList.add('show')
+  },
+  hide(){ document.getElementById('histModal').classList.remove('show') },
+  renderCal(){
+    const m = parseInt(document.getElementById('calMonth').value)
+    const y = parseInt(document.getElementById('calYear').value)
+    S.calMonth = new Date(y,m,1)
+    const grid=document.getElementById('calGrid')
+    const days=['อา','จ','อ','พ','พฤ','ศ','ส']
+    let html=days.map(d=>`<div class="cal-day-name">${d}</div>`).join('')
+    const first=new Date(y,m,1).getDay(), total=new Date(y,m+1,0).getDate(), today=dstr(new Date())
+    for(let i=0;i<first;i++) html+=`<div class="cal-day cdis"></div>`
+    for(let d=1;d<=total;d++){
+      const ds=dstr(new Date(y,m,d))
+      const has=S.availDates.has(ds)
+      let cls='cal-day'
+      if(!has) cls+=' cdis'
+      else if(ds===today) cls+=' ctoday chas'
+      else cls+=' chas'
+      html+=`<div class="${cls}" onclick="HistModal.pick('${ds}')">${d}</div>`
+    }
+    grid.innerHTML=html
+  },
+  async pick(ds){
+    if(!S.availDates.has(ds)) return
+    HistModal.hide()
+    await loadDateSessions(ds)
+  }
+}
+
+// ════════════════════════════════════
+// LOAD DATA
+// ════════════════════════════════════
+async function loadToday(){
+  try{
+    const data = await API.todaySessions()
+    S.todaySessions = data.sessions.map(s=>({
+      ...s, present:null, late:null, absent:null
+    }))
+    renderBanner()
+    renderSessionsGrid()
+    if(!S.selectedSid || !S.todaySessions.find(s=>s.id===S.selectedSid)){
+      const target = S.todaySessions.find(s=>s.is_active) || S.todaySessions.at(-1)
+      if(target){ S.selectedSid=target.id; renderSessionsGrid() }
+    }
+    if(S.selectedSid) await loadSessionData(S.selectedSid)
+  } catch(e){ console.error(e) }
+}
+
+async function loadSessionData(id){
+  document.getElementById('tableBody').innerHTML=
+    `<tr><td colspan="5" style="text-align:center;padding:30px;color:#bbb">กำลังโหลด...</td></tr>`
+  try{
+    const data = await API.sessionAttendance(id)
+    const idx = S.todaySessions.findIndex(s=>s.id===id)
+    if(idx>=0){
+      S.todaySessions[idx].present = data.present
+      S.todaySessions[idx].late    = data.late
+      S.todaySessions[idx].absent  = data.absent
+    }
+    renderSessionsGrid()
+    S.allStudents = data.students ?? []
+    renderStats(data)
+    Filter.apply()
+  } catch(e){
+    document.getElementById('tableBody').innerHTML=
+      `<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--red)">โหลดข้อมูลไม่สำเร็จ</td></tr>`
+  }
+}
+
+async function loadDateSessions(date){
+  try{
+    const data = await API.sessionsByDate(date)
+    S.todaySessions = data.sessions.map(s=>({...s,present:null,late:null,absent:null}))
+    document.getElementById('sessionsTitle').textContent =
+      `คลาสวันที่ ${thaiDate(new Date(date+'T00:00:00'))}`
+    document.getElementById('addSessionBtn').style.display = 'none'
+    renderBanner()
+    renderSessionsGrid()
+    S.selectedSid = null
+    const first = S.todaySessions[0]
+    if(first){ S.selectedSid=first.id; renderSessionsGrid(); await loadSessionData(first.id) }
+  } catch(e){ toast('โหลดข้อมูลไม่สำเร็จ','terr') }
+}
+
+// ════════════════════════════════════
+// INIT
+// ════════════════════════════════════
+document.getElementById('searchInput').addEventListener('input', function(){
+  const kw=this.value.trim()
+  const em=document.getElementById('errorMsg')
+  if(kw.length>0&&kw.length<8){
+    em.textContent=`กรุณากรอกให้ครบ 8 ตัว (ปัจจุบัน ${kw.length}/8)`
+    em.classList.add('show'); S.search=''
+  } else { em.classList.remove('show'); S.search=kw }
+  Filter.apply()
+})
+document.getElementById('openModal').addEventListener('click', e=>{
+  if(e.target===document.getElementById('openModal')) OpenModal.hide()
+})
+document.getElementById('histModal').addEventListener('click', e=>{
+  if(e.target===document.getElementById('histModal')) HistModal.hide()
+})
+
+setInterval(async()=>{
+  const active = S.todaySessions.find(s=>s.is_active)
+  if(active){ await loadToday() }
+},30000)
+
+loadToday()
+</script>
+</body>
+</html>
